@@ -1,0 +1,79 @@
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Project binary
+endpoint_forwarder
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool, specifically when used with LiteIDE
+*.out
+
+# Go workspace file
+go.work
+
+.claude/
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Database files
+*.db
+internal/tracking/data/
+data/
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+
+# YAML files (exclude all yaml files except those in config directory)
+*.yaml
+
+# But include yaml files in config directory except config.yaml
+!config/*.yaml
+config/config.yaml
+
+# Test files
+*_test_example.go
+/docs
+/data
+docs/TECHNICAL_ARCHITECTURE.md
+docs/REFACTOR_PLAN.md
+cc-forwarder
+/logs
+
+# OpenSpec directory
+openspec/
+
+
+# Node.js 前端构建
+internal/web/static/frontend/node_modules/
+internal/web/static/frontend/dist/
+internal/web/static/dist/
+
+# Wails 构建输出
+build/
+build.log
+
+# 废弃代码
+internal/tracking/deprecated/

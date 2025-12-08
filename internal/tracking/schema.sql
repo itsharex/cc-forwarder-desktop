@@ -1,0 +1,259 @@
+-- Usage Tracking Database Schema
+-- 使用跟踪系统数据库结构
+-- 创建时间: 2025-09-04
+
+-- 请求记录主表
+CREATE TABLE IF NOT EXISTS request_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    request_id TEXT UNIQUE NOT NULL,        -- req-xxxxxxxx
+    
+    -- 请求基本信息
+    client_ip TEXT,                         -- 客户端IP
+    user_agent TEXT,                        -- 客户端User-Agent
+    method TEXT DEFAULT 'POST',             -- HTTP方法
+    path TEXT DEFAULT '/v1/messages',       -- 请求路径
+    
+    -- 时间信息
+    start_time DATETIME NOT NULL,           -- 请求开始时间
+    end_time DATETIME,                      -- 请求完成时间
+    duration_ms INTEGER,                    -- 总耗时(毫秒)
+    
+    -- 转发信息
+    channel TEXT DEFAULT '',                -- 渠道标签（来自端点配置）
+    endpoint_name TEXT,                     -- 使用的端点名称
+    group_name TEXT,                        -- 所属组名
+    model_name TEXT,                        -- Claude模型名称
+    is_streaming BOOLEAN DEFAULT FALSE,     -- 是否为流式请求
+    
+    -- 状态信息 (v3.5.0更新: 生命周期状态与错误原因分离 - 2025-09-28)
+    status TEXT NOT NULL DEFAULT 'pending', -- 生命周期状态: pending/forwarding/processing/retry/suspended/completed/failed/cancelled
+    http_status_code INTEGER,               -- HTTP状态码
+    retry_count INTEGER DEFAULT 0,          -- 重试次数
+
+    -- 失败信息 (状态机重构新增字段 v3.5.0 - 2025-09-28)
+    failure_reason TEXT,                    -- 当前失败原因类型: rate_limited/server_error/network_error/timeout/empty_response/invalid_response
+    last_failure_reason TEXT,               -- 最后一次失败的详细错误信息
+
+    -- 取消信息 (状态机重构新增字段 v3.5.0 - 2025-09-28)
+    cancel_reason TEXT,                     -- 取消原因 (取消时间使用end_time字段)
+    
+    -- Token统计
+    input_tokens INTEGER DEFAULT 0,        -- 输入token数
+    output_tokens INTEGER DEFAULT 0,       -- 输出token数
+    cache_creation_tokens INTEGER DEFAULT 0, -- 缓存创建token数（总计，向后兼容）
+    cache_creation_5m_tokens INTEGER DEFAULT 0, -- 5分钟缓存创建token数 (v5.0.1+)
+    cache_creation_1h_tokens INTEGER DEFAULT 0, -- 1小时缓存创建token数 (v5.0.1+)
+    cache_read_tokens INTEGER DEFAULT 0,   -- 缓存读取token数
+
+    -- 成本计算（包含缓存）
+    input_cost_usd REAL DEFAULT 0,         -- 输入token成本
+    output_cost_usd REAL DEFAULT 0,        -- 输出token成本
+    cache_creation_cost_usd REAL DEFAULT 0, -- 缓存创建成本（总计，向后兼容）
+    cache_creation_5m_cost_usd REAL DEFAULT 0, -- 5分钟缓存创建成本 (v5.0.1+)
+    cache_creation_1h_cost_usd REAL DEFAULT 0, -- 1小时缓存创建成本 (v5.0.1+)
+    cache_read_cost_usd REAL DEFAULT 0,    -- 缓存读取成本
+    total_cost_usd REAL DEFAULT 0,         -- 总成本
+    
+    -- 审计字段（统一使用带时区格式，微秒精度）
+    created_at DATETIME DEFAULT (strftime('%Y-%m-%d %H:%M:%f', 'now', 'localtime') || '+08:00'),
+    updated_at DATETIME DEFAULT (strftime('%Y-%m-%d %H:%M:%f', 'now', 'localtime') || '+08:00')
+);
+
+-- 索引优化
+CREATE INDEX IF NOT EXISTS idx_request_logs_request_id ON request_logs(request_id);
+CREATE INDEX IF NOT EXISTS idx_request_logs_start_time ON request_logs(start_time);
+CREATE INDEX IF NOT EXISTS idx_request_logs_status ON request_logs(status);
+CREATE INDEX IF NOT EXISTS idx_request_logs_model ON request_logs(model_name);
+CREATE INDEX IF NOT EXISTS idx_request_logs_channel ON request_logs(channel);
+CREATE INDEX IF NOT EXISTS idx_request_logs_endpoint ON request_logs(endpoint_name);
+CREATE INDEX IF NOT EXISTS idx_request_logs_group ON request_logs(group_name);
+CREATE INDEX IF NOT EXISTS idx_request_logs_failure_reason ON request_logs(failure_reason);
+
+-- 使用统计汇总表 (可选，用于快速查询)
+CREATE TABLE IF NOT EXISTS usage_summary (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    date TEXT NOT NULL,                    -- YYYY-MM-DD
+    model_name TEXT NOT NULL,
+    endpoint_name TEXT NOT NULL,
+    group_name TEXT,
+    
+    request_count INTEGER DEFAULT 0,       -- 请求总数
+    success_count INTEGER DEFAULT 0,       -- 成功请求数
+    error_count INTEGER DEFAULT 0,         -- 失败请求数
+    
+    total_input_tokens INTEGER DEFAULT 0,
+    total_output_tokens INTEGER DEFAULT 0,
+    total_cache_creation_tokens INTEGER DEFAULT 0,
+    total_cache_read_tokens INTEGER DEFAULT 0,
+    total_cost_usd REAL DEFAULT 0,
+    
+    avg_duration_ms REAL DEFAULT 0,        -- 平均响应时间
+    
+    created_at DATETIME DEFAULT (strftime('%Y-%m-%d %H:%M:%f', 'now', 'localtime') || '+08:00'),
+    updated_at DATETIME DEFAULT (strftime('%Y-%m-%d %H:%M:%f', 'now', 'localtime') || '+08:00'),
+    
+    UNIQUE(date, model_name, endpoint_name, group_name)
+);
+
+-- 汇总表索引
+CREATE INDEX IF NOT EXISTS idx_usage_summary_date ON usage_summary(date);
+CREATE INDEX IF NOT EXISTS idx_usage_summary_model ON usage_summary(model_name);
+CREATE INDEX IF NOT EXISTS idx_usage_summary_endpoint ON usage_summary(endpoint_name);
+CREATE INDEX IF NOT EXISTS idx_usage_summary_group ON usage_summary(group_name);
+
+-- 触发器：自动更新 updated_at 时间戳（统一使用带时区格式，微秒精度）
+CREATE TRIGGER IF NOT EXISTS update_request_logs_timestamp
+    AFTER UPDATE ON request_logs
+    FOR EACH ROW
+    WHEN NEW.updated_at = OLD.updated_at
+BEGIN
+    UPDATE request_logs SET updated_at = strftime('%Y-%m-%d %H:%M:%f', 'now', 'localtime') || '+08:00' WHERE id = NEW.id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS update_usage_summary_timestamp
+    AFTER UPDATE ON usage_summary
+    FOR EACH ROW
+    WHEN NEW.updated_at = OLD.updated_at
+BEGIN
+    UPDATE usage_summary SET updated_at = strftime('%Y-%m-%d %H:%M:%f', 'now', 'localtime') || '+08:00' WHERE id = NEW.id;
+END;
+
+-- ============================================================================
+-- 端点配置表 (v5.0.0 新增 - 2025-12-05)
+-- 将端点配置从 config.yaml 迁移到 SQLite，支持动态增删改查
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS endpoints (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+    -- ========== 基本信息 ==========
+    channel TEXT NOT NULL,                          -- 渠道标签（用于分组展示）
+    name TEXT UNIQUE NOT NULL,                      -- 端点唯一名称
+    url TEXT NOT NULL,                              -- 端点 URL
+
+    -- ========== 认证配置 ==========
+    token TEXT,                                     -- Bearer Token
+    api_key TEXT,                                   -- API Key (备用)
+    headers TEXT,                                   -- 自定义请求头 (JSON格式)
+
+    -- ========== 路由配置 ==========
+    priority INTEGER DEFAULT 1,                     -- 优先级（数字越小越高）
+    failover_enabled INTEGER DEFAULT 1,             -- 是否参与故障转移 (1=是, 0=否)
+    cooldown_seconds INTEGER,                       -- 冷却时间（秒，NULL=使用全局配置）
+    timeout_seconds INTEGER DEFAULT 300,            -- 请求超时（秒）
+
+    -- ========== 功能支持 ==========
+    supports_count_tokens INTEGER DEFAULT 0,        -- 是否支持 count_tokens 端点
+
+    -- ========== 成本倍率 ==========
+    cost_multiplier REAL DEFAULT 1.0,               -- 总成本倍率
+    input_cost_multiplier REAL DEFAULT 1.0,         -- 输入成本倍率
+    output_cost_multiplier REAL DEFAULT 1.0,        -- 输出成本倍率
+    cache_creation_cost_multiplier REAL DEFAULT 1.0,-- 5分钟缓存创建成本倍率（默认）
+    cache_creation_cost_multiplier_1h REAL DEFAULT 1.0, -- 1小时缓存创建成本倍率
+    cache_read_cost_multiplier REAL DEFAULT 1.0,    -- 缓存读取成本倍率
+
+    -- ========== 状态 ==========
+    enabled INTEGER DEFAULT 1,                      -- 是否启用 (1=启用, 0=禁用)
+
+    -- ========== 审计字段 ==========
+    created_at DATETIME DEFAULT (strftime('%Y-%m-%d %H:%M:%f', 'now', 'localtime') || '+08:00'),
+    updated_at DATETIME DEFAULT (strftime('%Y-%m-%d %H:%M:%f', 'now', 'localtime') || '+08:00')
+);
+
+-- 端点表索引
+CREATE INDEX IF NOT EXISTS idx_endpoints_channel ON endpoints(channel);
+CREATE INDEX IF NOT EXISTS idx_endpoints_priority ON endpoints(priority);
+CREATE INDEX IF NOT EXISTS idx_endpoints_enabled ON endpoints(enabled);
+CREATE INDEX IF NOT EXISTS idx_endpoints_failover ON endpoints(failover_enabled);
+
+-- 端点表触发器：自动更新 updated_at
+CREATE TRIGGER IF NOT EXISTS update_endpoints_timestamp
+    AFTER UPDATE ON endpoints
+    FOR EACH ROW
+    WHEN NEW.updated_at = OLD.updated_at
+BEGIN
+    UPDATE endpoints SET updated_at = strftime('%Y-%m-%d %H:%M:%f', 'now', 'localtime') || '+08:00' WHERE id = NEW.id;
+END;
+
+-- ============================================================================
+-- 模型定价表 (v5.0.0 新增 - 2025-12-06, 更新于 2025-12-06 支持 5m/1h 缓存)
+-- 将模型定价从 config.yaml 迁移到 SQLite，支持动态管理
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS model_pricing (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+    -- ========== 模型信息 ==========
+    model_name TEXT UNIQUE NOT NULL,                -- 模型名称（如 claude-sonnet-4-20250514）
+
+    -- ========== 定价信息 (USD per 1M tokens) ==========
+    input_price REAL NOT NULL DEFAULT 3.0,          -- 输入价格
+    output_price REAL NOT NULL DEFAULT 15.0,        -- 输出价格
+    cache_creation_price_5m REAL DEFAULT 3.75,      -- 5分钟缓存创建价格 (通常为 input * 1.25)
+    cache_creation_price_1h REAL DEFAULT 6.0,       -- 1小时缓存创建价格 (通常为 input * 2.0)
+    cache_read_price REAL DEFAULT 0.30,             -- 缓存读取价格 (通常为 input * 0.1)
+
+    -- ========== 模型元信息 ==========
+    display_name TEXT,                              -- 显示名称（用于前端展示）
+    description TEXT,                               -- 模型描述
+    is_default INTEGER DEFAULT 0,                   -- 是否为默认定价 (1=是)
+
+    -- ========== 审计字段 ==========
+    created_at DATETIME DEFAULT (strftime('%Y-%m-%d %H:%M:%f', 'now', 'localtime') || '+08:00'),
+    updated_at DATETIME DEFAULT (strftime('%Y-%m-%d %H:%M:%f', 'now', 'localtime') || '+08:00')
+);
+
+-- 模型定价表索引
+CREATE INDEX IF NOT EXISTS idx_model_pricing_model_name ON model_pricing(model_name);
+CREATE INDEX IF NOT EXISTS idx_model_pricing_is_default ON model_pricing(is_default);
+
+-- 模型定价表触发器：自动更新 updated_at
+CREATE TRIGGER IF NOT EXISTS update_model_pricing_timestamp
+    AFTER UPDATE ON model_pricing
+    FOR EACH ROW
+    WHEN NEW.updated_at = OLD.updated_at
+BEGIN
+    UPDATE model_pricing SET updated_at = strftime('%Y-%m-%d %H:%M:%f', 'now', 'localtime') || '+08:00' WHERE id = NEW.id;
+END;
+
+-- ============================================================================
+-- 系统设置表 (v5.1.0 新增 - 2025-12-08)
+-- 将运行时可调配置从 config.yaml 迁移到 SQLite，支持动态管理和热更新
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS settings (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+    -- ========== 设置标识 ==========
+    category TEXT NOT NULL,                         -- 分类: strategy, retry, health, failover, request, streaming, auth, token_counting, retention, hot_pool, server
+    key TEXT NOT NULL,                              -- 配置键
+
+    -- ========== 设置值 ==========
+    value TEXT NOT NULL,                            -- 值 (JSON格式支持复杂类型)
+    value_type TEXT DEFAULT 'string',               -- 类型: string, int, float, bool, duration, json
+
+    -- ========== 显示信息 ==========
+    label TEXT,                                     -- 显示名称
+    description TEXT,                               -- 配置说明
+    display_order INTEGER DEFAULT 0,                -- 显示顺序（同分类内排序）
+
+    -- ========== 元信息 ==========
+    requires_restart INTEGER DEFAULT 0,             -- 是否需要重启生效 (1=需要, 0=立即生效)
+
+    -- ========== 审计字段 ==========
+    created_at DATETIME DEFAULT (strftime('%Y-%m-%d %H:%M:%f', 'now', 'localtime') || '+08:00'),
+    updated_at DATETIME DEFAULT (strftime('%Y-%m-%d %H:%M:%f', 'now', 'localtime') || '+08:00'),
+
+    UNIQUE(category, key)
+);
+
+-- 设置表索引
+CREATE INDEX IF NOT EXISTS idx_settings_category ON settings(category);
+CREATE INDEX IF NOT EXISTS idx_settings_category_key ON settings(category, key);
+
+-- 设置表触发器：自动更新 updated_at
+CREATE TRIGGER IF NOT EXISTS update_settings_timestamp
+    AFTER UPDATE ON settings
+    FOR EACH ROW
+    WHEN NEW.updated_at = OLD.updated_at
+BEGIN
+    UPDATE settings SET updated_at = strftime('%Y-%m-%d %H:%M:%f', 'now', 'localtime') || '+08:00' WHERE id = NEW.id;
+END;

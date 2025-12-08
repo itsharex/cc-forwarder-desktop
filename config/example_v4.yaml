@@ -1,0 +1,192 @@
+# Claude Request Forwarder v4.0 Configuration
+# v4.0 新特性: 简化配置 - 移除"组"概念,直接配置端点和故障转移
+
+# 全局时区配置
+timezone: "Asia/Shanghai"
+
+# 服务器配置
+server:
+  host: "0.0.0.0"
+  port: 8087
+
+# 路由策略配置
+strategy:
+  type: "priority"                  # 路由策略: "priority" (优先级) 或 "fastest" (最快响应)
+  fast_test_enabled: false          # 启用快速测试 (仅在 fastest 策略下生效)
+
+# 重试配置
+retry:
+  max_attempts: 3
+  base_delay: "1s"
+  max_delay: "30s"
+  multiplier: 2.0
+
+# 健康检查配置
+health:
+  check_interval: "30s"
+  timeout: "5s"
+  health_path: "/v1/models"
+
+# 日志配置
+logging:
+  level: "info"
+  format: "text"
+
+# 流式传输配置
+streaming:
+  heartbeat_interval: "30s"
+  read_timeout: "10s"
+  max_idle_time: "120s"
+  response_header_timeout: "60s"
+
+# ==================== v4.0 故障转移配置 ====================
+# 🆕 v4.0 新配置: 取代旧的 group 配置
+# ========================================================
+failover:
+  enabled: true                    # 启用故障转移，默认: true
+  default_cooldown: "10m"          # 默认冷却时间，默认: 10m
+
+# ==================== v3.x 兼容配置 (可选) ====================
+# ⚠️  以下 group 配置已弃用，保留仅为向后兼容
+# 推荐使用上面的 failover 配置
+# 如果同时存在 failover 和 group 配置，优先使用 failover
+# ========================================================
+# group:
+#   cooldown: "10m"                      # 自动映射到 failover.default_cooldown
+#   auto_switch_between_groups: true     # 自动映射到 failover.enabled
+
+# 请求挂起配置
+request_suspend:
+  enabled: false
+  timeout: "300s"
+  max_suspended_requests: 100
+
+# 全局超时配置
+global_timeout: "300s"
+
+# 鉴权配置
+auth:
+  enabled: false
+
+# TUI界面配置
+tui:
+  enabled: false
+  update_interval: "2s"
+
+# Web界面配置
+web:
+  enabled: true
+  host: "0.0.0.0"
+  port: 8088
+
+# Token计数配置
+token_counting:
+  enabled: true
+  estimation_ratio: 4.0
+
+# 使用跟踪配置
+usage_tracking:
+  enabled: false
+  database:
+    type: "sqlite"
+    path: "data/usage.db"
+
+  # 🆕 v4.1 热池配置（可选，默认启用）
+  # 热池架构将活跃请求保持在内存中，只在完成时写入数据库
+  # 优势: 减少80%数据库写入，提升100x实时查询性能
+  hot_pool:
+    enabled: true              # 是否启用热池模式，默认: true
+    max_age: "30m"             # 请求最大存活时间，超时自动归档，默认: 30m
+    max_size: 10000            # 热池最大容量，默认: 10000
+    cleanup_interval: "1m"     # 僵尸请求清理间隔，默认: 1m
+    archive_on_cleanup: true   # 清理时是否归档到数据库，默认: true
+
+# ==================== v4.0 端点配置 ====================
+# 🆕 v4.0 简化配置: 移除 group 和 group-priority
+# 直接使用 priority 和 failover_enabled
+# ========================================================
+endpoints:
+  # 优先级 1 端点 (最高优先级)
+  - name: "instcopilot-sg"
+    url: "https://api.instcopilot.com"
+    priority: 1                    # 端点优先级（数字越小优先级越高）
+    failover_enabled: true         # 参与故障转移，默认: true
+    # cooldown: "5m"               # 端点级冷却时间（可选），默认使用全局配置
+    timeout: "300s"
+    token: "sk-your-primary-token"
+    supports_count_tokens: true    # 支持count_tokens端点
+    headers:
+      anthropic-version: "2023-06-01"
+
+  # 优先级 2 端点 (备用)
+  - name: "openai-us"
+    url: "https://api.openai.com"
+    priority: 2
+    failover_enabled: true         # 参与故障转移
+    timeout: "300s"
+    token: "sk-your-backup-token"
+    supports_count_tokens: false
+
+  # 优先级 3 端点 (第二备用)
+  - name: "anthropic-official"
+    url: "https://api.anthropic.com"
+    priority: 3
+    failover_enabled: true
+    timeout: "300s"
+    token: "sk-your-anthropic-token"
+    supports_count_tokens: true
+
+  # 专用端点 (不参与故障转移)
+  # 适用场景: 仅用于特定模型，不希望作为其他端点的备用
+  - name: "special-model-only"
+    url: "https://special.api.com"
+    priority: 1
+    failover_enabled: false        # 🔒 不参与故障转移（专用端点）
+    timeout: "300s"
+    token: "sk-special-token"
+    # 此端点失败不会切换到其他端点
+
+# ==================== 配置迁移指南 ====================
+# v3.x → v4.0 自动迁移:
+#
+# v3.x 配置 (仍然支持):
+# endpoints:
+#   - name: "endpoint1"
+#     group: "main"          # 自动忽略
+#     group-priority: 1      # 自动映射到 priority
+#     priority: 1
+#
+# group:
+#   cooldown: "10m"                      # 自动映射到 failover.default_cooldown
+#   auto_switch_between_groups: true     # 自动映射到 failover.enabled
+#
+# v4.0 新配置 (推荐):
+# endpoints:
+#   - name: "endpoint1"
+#     priority: 1            # 直接使用 priority
+#     failover_enabled: true # 是否参与故障转移
+#
+# failover:
+#   enabled: true
+#   default_cooldown: "10m"
+#
+# ========================================================
+
+# ==================== 使用场景示例 ====================
+#
+# 场景1: 普通故障转移
+# - 设置多个端点,按 priority 排序
+# - 所有端点 failover_enabled: true
+# - failover.enabled: true
+# → 端点按优先级故障转移
+#
+# 场景2: 专用端点（不参与故障转移）
+# - 通用端点: failover_enabled: true
+# - 专用端点: failover_enabled: false
+# → 专用端点仅用于特定请求,失败不切换
+#
+# 场景3: 禁用全局故障转移
+# - failover.enabled: false
+# → 端点失败直接返回错误,不进行故障转移
+#
+# ========================================================

@@ -1,0 +1,877 @@
+export namespace logging {
+	
+	export class LogEntry {
+	    timestamp: string;
+	    level: string;
+	    message: string;
+	    attrs: Record<string, string>;
+	
+	    static createFrom(source: any = {}) {
+	        return new LogEntry(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.timestamp = source["timestamp"];
+	        this.level = source["level"];
+	        this.message = source["message"];
+	        this.attrs = source["attrs"];
+	    }
+	}
+
+}
+
+export namespace main {
+	
+	export class BatchHealthCheckResult {
+	    success: boolean;
+	    message: string;
+	    total: number;
+	    healthy_count: number;
+	    unhealthy_count: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new BatchHealthCheckResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.success = source["success"];
+	        this.message = source["message"];
+	        this.total = source["total"];
+	        this.healthy_count = source["healthy_count"];
+	        this.unhealthy_count = source["unhealthy_count"];
+	    }
+	}
+	export class UpdateSettingInput {
+	    category: string;
+	    key: string;
+	    value: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new UpdateSettingInput(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.category = source["category"];
+	        this.key = source["key"];
+	        this.value = source["value"];
+	    }
+	}
+	export class BatchUpdateSettingsInput {
+	    settings: UpdateSettingInput[];
+	
+	    static createFrom(source: any = {}) {
+	        return new BatchUpdateSettingsInput(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.settings = this.convertValues(source["settings"], UpdateSettingInput);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class CategoryInfo {
+	    name: string;
+	    label: string;
+	    description: string;
+	    icon: string;
+	    order: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new CategoryInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.label = source["label"];
+	        this.description = source["description"];
+	        this.icon = source["icon"];
+	        this.order = source["order"];
+	    }
+	}
+	export class ChannelInfo {
+	    name: string;
+	    endpoint_count: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new ChannelInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.endpoint_count = source["endpoint_count"];
+	    }
+	}
+	export class ChartDataPoint {
+	    time: string;
+	    total: number;
+	    success: number;
+	    fail: number;
+	    avg: number;
+	    min: number;
+	    max: number;
+	    value: number;
+	    timestamp: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ChartDataPoint(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.time = source["time"];
+	        this.total = source["total"];
+	        this.success = source["success"];
+	        this.fail = source["fail"];
+	        this.avg = source["avg"];
+	        this.min = source["min"];
+	        this.max = source["max"];
+	        this.value = source["value"];
+	        this.timestamp = source["timestamp"];
+	    }
+	}
+	export class ConfigInfo {
+	    server_host: string;
+	    server_port: number;
+	    auth_enabled: boolean;
+	    proxy_enabled: boolean;
+	    tracking_enabled: boolean;
+	    failover_enabled: boolean;
+	    endpoint_count: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new ConfigInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.server_host = source["server_host"];
+	        this.server_port = source["server_port"];
+	        this.auth_enabled = source["auth_enabled"];
+	        this.proxy_enabled = source["proxy_enabled"];
+	        this.tracking_enabled = source["tracking_enabled"];
+	        this.failover_enabled = source["failover_enabled"];
+	        this.endpoint_count = source["endpoint_count"];
+	    }
+	}
+	export class CreateEndpointInput {
+	    channel: string;
+	    name: string;
+	    url: string;
+	    token: string;
+	    api_key: string;
+	    headers: Record<string, string>;
+	    priority: number;
+	    failover_enabled: boolean;
+	    cooldown_seconds?: number;
+	    timeout_seconds: number;
+	    supports_count_tokens: boolean;
+	    cost_multiplier: number;
+	    input_cost_multiplier: number;
+	    output_cost_multiplier: number;
+	    cache_creation_cost_multiplier: number;
+	    cache_read_cost_multiplier: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new CreateEndpointInput(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.channel = source["channel"];
+	        this.name = source["name"];
+	        this.url = source["url"];
+	        this.token = source["token"];
+	        this.api_key = source["api_key"];
+	        this.headers = source["headers"];
+	        this.priority = source["priority"];
+	        this.failover_enabled = source["failover_enabled"];
+	        this.cooldown_seconds = source["cooldown_seconds"];
+	        this.timeout_seconds = source["timeout_seconds"];
+	        this.supports_count_tokens = source["supports_count_tokens"];
+	        this.cost_multiplier = source["cost_multiplier"];
+	        this.input_cost_multiplier = source["input_cost_multiplier"];
+	        this.output_cost_multiplier = source["output_cost_multiplier"];
+	        this.cache_creation_cost_multiplier = source["cache_creation_cost_multiplier"];
+	        this.cache_read_cost_multiplier = source["cache_read_cost_multiplier"];
+	    }
+	}
+	export class CreateModelPricingInput {
+	    model_name: string;
+	    display_name: string;
+	    description: string;
+	    input_price: number;
+	    output_price: number;
+	    cache_creation_price_5m: number;
+	    cache_creation_price_1h: number;
+	    cache_read_price: number;
+	    is_default: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new CreateModelPricingInput(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.model_name = source["model_name"];
+	        this.display_name = source["display_name"];
+	        this.description = source["description"];
+	        this.input_price = source["input_price"];
+	        this.output_price = source["output_price"];
+	        this.cache_creation_price_5m = source["cache_creation_price_5m"];
+	        this.cache_creation_price_1h = source["cache_creation_price_1h"];
+	        this.cache_read_price = source["cache_read_price"];
+	        this.is_default = source["is_default"];
+	    }
+	}
+	export class EndpointCostItem {
+	    name: string;
+	    tokens: number;
+	    cost: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new EndpointCostItem(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.tokens = source["tokens"];
+	        this.cost = source["cost"];
+	    }
+	}
+	export class EndpointHealthData {
+	    healthy: number;
+	    unhealthy: number;
+	    total: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new EndpointHealthData(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.healthy = source["healthy"];
+	        this.unhealthy = source["unhealthy"];
+	        this.total = source["total"];
+	    }
+	}
+	export class EndpointInfo {
+	    name: string;
+	    url: string;
+	    channel: string;
+	    group: string;
+	    priority: number;
+	    group_priority: number;
+	    group_is_active: boolean;
+	    healthy: boolean;
+	    last_check: string;
+	    response_time_ms: number;
+	    consecutive_fail: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new EndpointInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.url = source["url"];
+	        this.channel = source["channel"];
+	        this.group = source["group"];
+	        this.priority = source["priority"];
+	        this.group_priority = source["group_priority"];
+	        this.group_is_active = source["group_is_active"];
+	        this.healthy = source["healthy"];
+	        this.last_check = source["last_check"];
+	        this.response_time_ms = source["response_time_ms"];
+	        this.consecutive_fail = source["consecutive_fail"];
+	    }
+	}
+	export class KeyInfo {
+	    index: number;
+	    name: string;
+	    value: string;
+	    is_active: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new KeyInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.index = source["index"];
+	        this.name = source["name"];
+	        this.value = source["value"];
+	        this.is_active = source["is_active"];
+	    }
+	}
+	export class EndpointKeysInfo {
+	    endpoint: string;
+	    tokens: KeyInfo[];
+	    api_keys: KeyInfo[];
+	    current_token_index: number;
+	    current_api_key_index: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new EndpointKeysInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.endpoint = source["endpoint"];
+	        this.tokens = this.convertValues(source["tokens"], KeyInfo);
+	        this.api_keys = this.convertValues(source["api_keys"], KeyInfo);
+	        this.current_token_index = source["current_token_index"];
+	        this.current_api_key_index = source["current_api_key_index"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class EndpointRecordInfo {
+	    id: number;
+	    channel: string;
+	    name: string;
+	    url: string;
+	    token_masked: string;
+	    api_key_masked: string;
+	    headers: Record<string, string>;
+	    priority: number;
+	    failover_enabled: boolean;
+	    cooldown_seconds?: number;
+	    timeout_seconds: number;
+	    supports_count_tokens: boolean;
+	    cost_multiplier: number;
+	    input_cost_multiplier: number;
+	    output_cost_multiplier: number;
+	    cache_creation_cost_multiplier: number;
+	    cache_read_cost_multiplier: number;
+	    enabled: boolean;
+	    created_at: string;
+	    updated_at: string;
+	    healthy: boolean;
+	    last_check: string;
+	    response_time_ms: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new EndpointRecordInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.channel = source["channel"];
+	        this.name = source["name"];
+	        this.url = source["url"];
+	        this.token_masked = source["token_masked"];
+	        this.api_key_masked = source["api_key_masked"];
+	        this.headers = source["headers"];
+	        this.priority = source["priority"];
+	        this.failover_enabled = source["failover_enabled"];
+	        this.cooldown_seconds = source["cooldown_seconds"];
+	        this.timeout_seconds = source["timeout_seconds"];
+	        this.supports_count_tokens = source["supports_count_tokens"];
+	        this.cost_multiplier = source["cost_multiplier"];
+	        this.input_cost_multiplier = source["input_cost_multiplier"];
+	        this.output_cost_multiplier = source["output_cost_multiplier"];
+	        this.cache_creation_cost_multiplier = source["cache_creation_cost_multiplier"];
+	        this.cache_read_cost_multiplier = source["cache_read_cost_multiplier"];
+	        this.enabled = source["enabled"];
+	        this.created_at = source["created_at"];
+	        this.updated_at = source["updated_at"];
+	        this.healthy = source["healthy"];
+	        this.last_check = source["last_check"];
+	        this.response_time_ms = source["response_time_ms"];
+	    }
+	}
+	export class EndpointStorageStatus {
+	    enabled: boolean;
+	    storage_type: string;
+	    total_count: number;
+	    enabled_count: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new EndpointStorageStatus(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.enabled = source["enabled"];
+	        this.storage_type = source["storage_type"];
+	        this.total_count = source["total_count"];
+	        this.enabled_count = source["enabled_count"];
+	    }
+	}
+	export class GroupInfo {
+	    name: string;
+	    active: boolean;
+	    paused: boolean;
+	    priority: number;
+	    endpoint_count: number;
+	    in_cooldown: boolean;
+	    cooldown_remain_ms: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new GroupInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.active = source["active"];
+	        this.paused = source["paused"];
+	        this.priority = source["priority"];
+	        this.endpoint_count = source["endpoint_count"];
+	        this.in_cooldown = source["in_cooldown"];
+	        this.cooldown_remain_ms = source["cooldown_remain_ms"];
+	    }
+	}
+	
+	export class KeysOverviewResult {
+	    endpoints: EndpointKeysInfo[];
+	    total: number;
+	    timestamp: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new KeysOverviewResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.endpoints = this.convertValues(source["endpoints"], EndpointKeysInfo);
+	        this.total = source["total"];
+	        this.timestamp = source["timestamp"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class ModelPricingInfo {
+	    id: number;
+	    model_name: string;
+	    display_name: string;
+	    description: string;
+	    input_price: number;
+	    output_price: number;
+	    cache_creation_price_5m: number;
+	    cache_creation_price_1h: number;
+	    cache_read_price: number;
+	    is_default: boolean;
+	    created_at: string;
+	    updated_at: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ModelPricingInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.model_name = source["model_name"];
+	        this.display_name = source["display_name"];
+	        this.description = source["description"];
+	        this.input_price = source["input_price"];
+	        this.output_price = source["output_price"];
+	        this.cache_creation_price_5m = source["cache_creation_price_5m"];
+	        this.cache_creation_price_1h = source["cache_creation_price_1h"];
+	        this.cache_read_price = source["cache_read_price"];
+	        this.is_default = source["is_default"];
+	        this.created_at = source["created_at"];
+	        this.updated_at = source["updated_at"];
+	    }
+	}
+	export class ModelPricingStorageStatus {
+	    enabled: boolean;
+	    total_count: number;
+	    has_default: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new ModelPricingStorageStatus(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.enabled = source["enabled"];
+	        this.total_count = source["total_count"];
+	        this.has_default = source["has_default"];
+	    }
+	}
+	export class PortInfo {
+	    preferred_port: number;
+	    actual_port: number;
+	    is_default: boolean;
+	    was_occupied: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new PortInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.preferred_port = source["preferred_port"];
+	        this.actual_port = source["actual_port"];
+	        this.is_default = source["is_default"];
+	        this.was_occupied = source["was_occupied"];
+	    }
+	}
+	export class RequestRecord {
+	    id: string;
+	    request_id: string;
+	    timestamp: string;
+	    channel: string;
+	    endpoint: string;
+	    group: string;
+	    model: string;
+	    status: string;
+	    http_status: number;
+	    input_tokens: number;
+	    output_tokens: number;
+	    cache_creation_tokens: number;
+	    cache_creation_5m_tokens: number;
+	    cache_creation_1h_tokens: number;
+	    cache_read_tokens: number;
+	    response_time: number;
+	    is_streaming: boolean;
+	    cost: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new RequestRecord(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.request_id = source["request_id"];
+	        this.timestamp = source["timestamp"];
+	        this.channel = source["channel"];
+	        this.endpoint = source["endpoint"];
+	        this.group = source["group"];
+	        this.model = source["model"];
+	        this.status = source["status"];
+	        this.http_status = source["http_status"];
+	        this.input_tokens = source["input_tokens"];
+	        this.output_tokens = source["output_tokens"];
+	        this.cache_creation_tokens = source["cache_creation_tokens"];
+	        this.cache_creation_5m_tokens = source["cache_creation_5m_tokens"];
+	        this.cache_creation_1h_tokens = source["cache_creation_1h_tokens"];
+	        this.cache_read_tokens = source["cache_read_tokens"];
+	        this.response_time = source["response_time"];
+	        this.is_streaming = source["is_streaming"];
+	        this.cost = source["cost"];
+	    }
+	}
+	export class RequestListResult {
+	    requests: RequestRecord[];
+	    total: number;
+	    page: number;
+	    page_size: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new RequestListResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.requests = this.convertValues(source["requests"], RequestRecord);
+	        this.total = source["total"];
+	        this.page = source["page"];
+	        this.page_size = source["page_size"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class RequestQueryParams {
+	    page: number;
+	    page_size: number;
+	    start_date: string;
+	    end_date: string;
+	    status: string;
+	    model: string;
+	    channel: string;
+	    endpoint: string;
+	    group: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new RequestQueryParams(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.page = source["page"];
+	        this.page_size = source["page_size"];
+	        this.start_date = source["start_date"];
+	        this.end_date = source["end_date"];
+	        this.status = source["status"];
+	        this.model = source["model"];
+	        this.channel = source["channel"];
+	        this.endpoint = source["endpoint"];
+	        this.group = source["group"];
+	    }
+	}
+	
+	export class SettingInfo {
+	    id: number;
+	    category: string;
+	    key: string;
+	    value: string;
+	    value_type: string;
+	    label: string;
+	    description: string;
+	    display_order: number;
+	    requires_restart: boolean;
+	    created_at: string;
+	    updated_at: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new SettingInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.category = source["category"];
+	        this.key = source["key"];
+	        this.value = source["value"];
+	        this.value_type = source["value_type"];
+	        this.label = source["label"];
+	        this.description = source["description"];
+	        this.display_order = source["display_order"];
+	        this.requires_restart = source["requires_restart"];
+	        this.created_at = source["created_at"];
+	        this.updated_at = source["updated_at"];
+	    }
+	}
+	export class SettingsStorageStatus {
+	    enabled: boolean;
+	    total_count: number;
+	    category_count: number;
+	    is_initialized: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new SettingsStorageStatus(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.enabled = source["enabled"];
+	        this.total_count = source["total_count"];
+	        this.category_count = source["category_count"];
+	        this.is_initialized = source["is_initialized"];
+	    }
+	}
+	export class SwitchKeyResult {
+	    success: boolean;
+	    message: string;
+	    endpoint: string;
+	    key_type: string;
+	    new_index: number;
+	    timestamp: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new SwitchKeyResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.success = source["success"];
+	        this.message = source["message"];
+	        this.endpoint = source["endpoint"];
+	        this.key_type = source["key_type"];
+	        this.new_index = source["new_index"];
+	        this.timestamp = source["timestamp"];
+	    }
+	}
+	export class SystemStatus {
+	    version: string;
+	    uptime: string;
+	    uptime_seconds: number;
+	    start_time: string;
+	    proxy_port: number;
+	    proxy_host: string;
+	    proxy_running: boolean;
+	    active_group: string;
+	    config_path: string;
+	    auth_enabled: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new SystemStatus(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.version = source["version"];
+	        this.uptime = source["uptime"];
+	        this.uptime_seconds = source["uptime_seconds"];
+	        this.start_time = source["start_time"];
+	        this.proxy_port = source["proxy_port"];
+	        this.proxy_host = source["proxy_host"];
+	        this.proxy_running = source["proxy_running"];
+	        this.active_group = source["active_group"];
+	        this.config_path = source["config_path"];
+	        this.auth_enabled = source["auth_enabled"];
+	    }
+	}
+	export class TokenUsageData {
+	    input_tokens: number;
+	    output_tokens: number;
+	    cache_creation_tokens: number;
+	    cache_read_tokens: number;
+	    total_tokens: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new TokenUsageData(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.input_tokens = source["input_tokens"];
+	        this.output_tokens = source["output_tokens"];
+	        this.cache_creation_tokens = source["cache_creation_tokens"];
+	        this.cache_read_tokens = source["cache_read_tokens"];
+	        this.total_tokens = source["total_tokens"];
+	    }
+	}
+	
+	export class UsageStatsData {
+	    period: string;
+	    total_requests: number;
+	    success_rate: number;
+	    avg_duration_ms: number;
+	    total_cost_usd: number;
+	    total_tokens: number;
+	    failed_requests: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new UsageStatsData(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.period = source["period"];
+	        this.total_requests = source["total_requests"];
+	        this.success_rate = source["success_rate"];
+	        this.avg_duration_ms = source["avg_duration_ms"];
+	        this.total_cost_usd = source["total_cost_usd"];
+	        this.total_tokens = source["total_tokens"];
+	        this.failed_requests = source["failed_requests"];
+	    }
+	}
+	export class UsageStatsQueryParams {
+	    period: string;
+	    start_date: string;
+	    end_date: string;
+	    status: string;
+	    model: string;
+	    channel: string;
+	    endpoint: string;
+	    group: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new UsageStatsQueryParams(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.period = source["period"];
+	        this.start_date = source["start_date"];
+	        this.end_date = source["end_date"];
+	        this.status = source["status"];
+	        this.model = source["model"];
+	        this.channel = source["channel"];
+	        this.endpoint = source["endpoint"];
+	        this.group = source["group"];
+	    }
+	}
+	export class UsageSummary {
+	    total_requests: number;
+	    success_requests: number;
+	    failed_requests: number;
+	    total_input_tokens: number;
+	    total_output_tokens: number;
+	    total_cost: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new UsageSummary(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.total_requests = source["total_requests"];
+	        this.success_requests = source["success_requests"];
+	        this.failed_requests = source["failed_requests"];
+	        this.total_input_tokens = source["total_input_tokens"];
+	        this.total_output_tokens = source["total_output_tokens"];
+	        this.total_cost = source["total_cost"];
+	    }
+	}
+
+}
+

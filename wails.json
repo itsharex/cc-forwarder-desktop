@@ -1,0 +1,21 @@
+{
+  "$schema": "https://wails.io/schemas/config.v2.json",
+  "name": "cc-forwarder",
+  "outputfilename": "CC-Forwarder",
+  "frontend:install": "npm install",
+  "frontend:build": "npm run build",
+  "frontend:dev:watcher": "npm run dev",
+  "frontend:dev:serverUrl": "auto",
+  "wailsjsdir": "./frontend/src",
+  "author": {
+    "name": "xiaozhaodong",
+    "email": "xiaozhaodong2011@163.com"
+  },
+  "info": {
+    "companyName": "CC-Forwarder",
+    "productName": "CC-Forwarder",
+    "productVersion": "5.0.0",
+    "copyright": "Copyright © 2025 CC-Forwarder",
+    "comments": "Claude Code 本地代理转发服务"
+  }
+}
