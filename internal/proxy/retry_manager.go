@@ -51,8 +51,11 @@ func (rm *RetryManager) ShouldRetry(errorCtx *handlers.ErrorContext, attempt int
 	case handlers.ErrorTypeEOF, handlers.ErrorTypeResponseTimeout, handlers.ErrorTypeTimeout:
 		// EOF、响应超时不可重试（避免重复计费）
 		return false, 0
-	case handlers.ErrorTypeHTTP, handlers.ErrorTypeAuth, handlers.ErrorTypeClientCancel:
-		// HTTP错误（4xx）、认证错误、客户端取消不可重试
+	case handlers.ErrorTypeHTTP, handlers.ErrorTypeClientCancel:
+		// HTTP错误（4xx）、客户端取消不可重试
+		return false, 0
+	case handlers.ErrorTypeAuth:
+		// 2025-12-10: 认证/权限错误不在同一端点重试（故障转移在 ShouldRetryWithDecision 处理）
 		return false, 0
 	case handlers.ErrorTypeRateLimit:
 		// 限流错误可重试，但使用更长的延迟
@@ -294,13 +297,14 @@ func (rm *RetryManager) ShouldRetryWithDecision(errorCtx *handlers.ErrorContext,
 		}
 
 	case handlers.ErrorTypeAuth:
-		// 认证错误：通常不可重试，除非是临时的认证问题
+		// 2025-12-10: 认证/权限错误（401/403）支持故障转移
+		// 不同端点可能配置了不同的 token，切换端点可能解决问题
 		return handlers.RetryDecision{
 			RetrySameEndpoint: false,
-			SwitchEndpoint:    false,
+			SwitchEndpoint:    true, // 尝试切换到其他端点
 			SuspendRequest:    false,
-			FinalStatus:       "auth_error",
-			Reason:           "认证错误，无需重试",
+			FinalStatus:       "", // 不设最终状态，允许继续尝试其他端点
+			Reason:           "认证/权限错误，尝试切换端点",
 		}
 
 	case handlers.ErrorTypeRateLimit:

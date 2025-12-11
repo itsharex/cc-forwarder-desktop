@@ -132,12 +132,10 @@ func (erm *ErrorRecoveryManager) ClassifyError(err error, requestID, endpoint, g
 	}
 
 	// 限流错误分类 - 高优先级，必须在服务器错误和HTTP通用检查之前
-	// 现在包含400错误码，因为400有时表示请求频率过高或临时的请求格式问题
+	// 2025-12-10: 移除 400 错误码，400 通常是请求格式错误而非限流
 	if strings.Contains(errStr, "rate") || strings.Contains(errStr, "429") ||
 		strings.Contains(errStr, "quota") || strings.Contains(errStr, "limit") ||
 		strings.Contains(errStr, "endpoint returned error: 429") ||
-		strings.Contains(errStr, "endpoint returned error: 400") ||
-		strings.Contains(errStr, "400") ||
 		strings.Contains(errStr, "too many requests") || strings.Contains(errStr, "rate_limit") ||
 		strings.Contains(errStr, "throttle") || strings.Contains(errStr, "quota exceeded") {
 		errorCtx.ErrorType = ErrorTypeRateLimit
@@ -162,12 +160,14 @@ func (erm *ErrorRecoveryManager) ClassifyError(err error, requestID, endpoint, g
 		return errorCtx
 	}
 
-	// 认证错误分类
-	if strings.Contains(errStr, "auth") || strings.Contains(errStr, "unauthorized") || strings.Contains(errStr, "401") {
+	// 认证/权限错误分类
+	// 2025-12-10: 包含 401 和 403，支持故障转移到其他端点（不同 token 可能有不同权限）
+	if strings.Contains(errStr, "auth") || strings.Contains(errStr, "unauthorized") || strings.Contains(errStr, "401") ||
+		strings.Contains(errStr, "forbidden") || strings.Contains(errStr, "403") {
 		errorCtx.ErrorType = ErrorTypeAuth
-		// 认证错误通常不可重试
+		// 认证/权限错误不在同一端点重试，但允许切换端点
 		errorCtx.RetryableAfter = 0
-		slog.Error(fmt.Sprintf("🔐 [认证错误分类] [%s] 端点: %s, 尝试: %d, 错误: %v",
+		slog.Error(fmt.Sprintf("🔐 [认证/权限错误分类] [%s] 端点: %s, 尝试: %d, 错误: %v",
 			requestID, endpoint, attempt, err))
 		return errorCtx
 	}
@@ -196,12 +196,13 @@ func (erm *ErrorRecoveryManager) ClassifyError(err error, requestID, endpoint, g
 		return errorCtx
 	}
 
-	// HTTP错误分类（非5xx，非429，非400）- 现在在限流和服务器错误检查之后，避免过早捕获特殊错误
+	// HTTP错误分类（非5xx，非429）- 现在在限流和服务器错误检查之后，避免过早捕获特殊错误
+	// 2025-12-10: 移除对 400 的排除，400 作为普通 HTTP 错误处理（不重试）
+	// 注意：401/403 已被上方的认证/权限错误分类捕获，不会进入这里
 	if (strings.Contains(errStr, "http") || strings.Contains(errStr, "status") ||
 		strings.Contains(errStr, "endpoint returned error")) &&
 		!strings.Contains(errStr, "endpoint returned error: 5") && // 排除5xx
-		!strings.Contains(errStr, "429") && !strings.Contains(errStr, "rate") && // 排除429/限流
-		!strings.Contains(errStr, "400") && !strings.Contains(errStr, "endpoint returned error: 400") { // 排除400
+		!strings.Contains(errStr, "429") && !strings.Contains(errStr, "rate") { // 排除429/限流
 		errorCtx.ErrorType = ErrorTypeHTTP
 		// 非5xx HTTP错误通常不可重试
 		slog.Error(fmt.Sprintf("🔗 [HTTP错误分类] [%s] 端点: %s, 尝试: %d, 错误: %v",
@@ -288,8 +289,8 @@ func (erm *ErrorRecoveryManager) ShouldRetry(errorCtx *ErrorContext) bool {
 		return true
 
 	case ErrorTypeAuth:
-		// 认证错误通常不可重试
-		slog.Info(fmt.Sprintf("❌ [重试判断] [%s] 认证错误不可重试", errorCtx.RequestID))
+		// 2025-12-10: 认证/权限错误不在同一端点重试，但支持切换端点（在 RetryManager 中处理）
+		slog.Info(fmt.Sprintf("🔐 [重试判断] [%s] 认证/权限错误不在同一端点重试，但可切换端点", errorCtx.RequestID))
 		return false
 
 	case ErrorTypeParsing:
