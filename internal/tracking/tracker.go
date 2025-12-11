@@ -901,18 +901,28 @@ func (ut *UsageTracker) recordRequestSuccessLegacy(requestID, modelName string, 
 
 // RecordRequestFinalFailure 记录请求最终失败或取消
 // 一次性更新所有失败/取消相关字段：status, end_time, duration_ms, failure_reason/cancel_reason, http_status_code, 可选Token
-func (ut *UsageTracker) RecordRequestFinalFailure(requestID, status, reason, errorDetail string, duration time.Duration, httpStatus int, tokens *TokenUsage) {
+// 🔧 [修复] 2025-12-11: 添加 modelName 参数，确保取消/失败请求能正确计算成本
+func (ut *UsageTracker) RecordRequestFinalFailure(requestID, modelName, status, reason, errorDetail string, duration time.Duration, httpStatus int, tokens *TokenUsage) {
 	if ut.config == nil || !ut.config.Enabled {
 		return
 	}
 
 	// 处理Token信息（失败/取消时可能有也可能没有）
 	var inputTokens, outputTokens, cacheCreationTokens, cacheReadTokens int64
+	var cacheCreation5mTokens, cacheCreation1hTokens int64 // 🔧 [修复] 2025-12-11: 添加 5m/1h 缓存字段
 	if tokens != nil {
 		inputTokens = tokens.InputTokens
 		outputTokens = tokens.OutputTokens
 		cacheCreationTokens = tokens.CacheCreationTokens
+		cacheCreation5mTokens = tokens.CacheCreation5mTokens
+		cacheCreation1hTokens = tokens.CacheCreation1hTokens
 		cacheReadTokens = tokens.CacheReadTokens
+
+		// 🔧 [向后兼容修复] v5.0.1+: 如果 5m/1h 都是 0 但总数不为 0，
+		// 将总数分配给 5m 字段，与成本计算逻辑保持一致
+		if cacheCreation5mTokens == 0 && cacheCreation1hTokens == 0 && cacheCreationTokens > 0 {
+			cacheCreation5mTokens = cacheCreationTokens
+		}
 	}
 
 	// 🔥 v4.1 热池模式：完成失败请求并归档
@@ -921,9 +931,15 @@ func (ut *UsageTracker) RecordRequestFinalFailure(requestID, status, reason, err
 		err := ut.hotPool.CompleteAndArchive(requestID, func(req *ActiveRequest) {
 			req.Status = status
 			req.HTTPStatus = httpStatus
+			// 🔧 [修复] 2025-12-11: 设置模型名，否则成本计算会失败
+			if modelName != "" && modelName != "unknown" {
+				req.ModelName = modelName
+			}
 			req.InputTokens = inputTokens
 			req.OutputTokens = outputTokens
 			req.CacheCreationTokens = cacheCreationTokens
+			req.CacheCreation5mTokens = cacheCreation5mTokens // 🔧 [修复] 2025-12-11
+			req.CacheCreation1hTokens = cacheCreation1hTokens // 🔧 [修复] 2025-12-11
 			req.CacheReadTokens = cacheReadTokens
 			req.EndTime = &now
 			req.DurationMs = duration.Milliseconds()
@@ -942,31 +958,35 @@ func (ut *UsageTracker) RecordRequestFinalFailure(requestID, status, reason, err
 			slog.Debug("🔥 热池完成失败请求失败，降级到事件队列模式",
 				"request_id", requestID,
 				"error", err)
-			ut.recordRequestFinalFailureLegacy(requestID, status, reason, errorDetail, duration, httpStatus, inputTokens, outputTokens, cacheCreationTokens, cacheReadTokens)
+			ut.recordRequestFinalFailureLegacy(requestID, modelName, status, reason, errorDetail, duration, httpStatus, inputTokens, outputTokens, cacheCreationTokens, cacheCreation5mTokens, cacheCreation1hTokens, cacheReadTokens)
 		}
 		return
 	}
 
 	// 传统模式：发送事件到队列
-	ut.recordRequestFinalFailureLegacy(requestID, status, reason, errorDetail, duration, httpStatus, inputTokens, outputTokens, cacheCreationTokens, cacheReadTokens)
+	ut.recordRequestFinalFailureLegacy(requestID, modelName, status, reason, errorDetail, duration, httpStatus, inputTokens, outputTokens, cacheCreationTokens, cacheCreation5mTokens, cacheCreation1hTokens, cacheReadTokens)
 }
 
 // recordRequestFinalFailureLegacy 传统模式记录请求失败
-func (ut *UsageTracker) recordRequestFinalFailureLegacy(requestID, status, reason, errorDetail string, duration time.Duration, httpStatus int, inputTokens, outputTokens, cacheCreationTokens, cacheReadTokens int64) {
+// 🔧 [修复] 2025-12-11: 添加 modelName 和 5m/1h 缓存字段参数
+func (ut *UsageTracker) recordRequestFinalFailureLegacy(requestID, modelName, status, reason, errorDetail string, duration time.Duration, httpStatus int, inputTokens, outputTokens, cacheCreationTokens, cacheCreation5mTokens, cacheCreation1hTokens, cacheReadTokens int64) {
 	event := RequestEvent{
 		Type:      "final_failure",
 		RequestID: requestID,
 		Timestamp: ut.now(),
 		Data: map[string]interface{}{
-			"status":                status,    // "failed" or "cancelled"
-			"reason":                reason,    // failure_reason or cancel_reason
-			"error_detail":          errorDetail,
-			"duration":              duration,
-			"http_status":           httpStatus, // HTTP状态码
-			"input_tokens":          inputTokens,
-			"output_tokens":         outputTokens,
-			"cache_creation_tokens": cacheCreationTokens,
-			"cache_read_tokens":     cacheReadTokens,
+			"status":                   status,    // "failed" or "cancelled"
+			"reason":                   reason,    // failure_reason or cancel_reason
+			"error_detail":             errorDetail,
+			"duration":                 duration,
+			"http_status":              httpStatus, // HTTP状态码
+			"model_name":               modelName,  // 🔧 [修复] 2025-12-11: 添加模型名
+			"input_tokens":             inputTokens,
+			"output_tokens":            outputTokens,
+			"cache_creation_tokens":    cacheCreationTokens,
+			"cache_creation_5m_tokens": cacheCreation5mTokens, // 🔧 [修复] 2025-12-11
+			"cache_creation_1h_tokens": cacheCreation1hTokens, // 🔧 [修复] 2025-12-11
+			"cache_read_tokens":        cacheReadTokens,
 		},
 	}
 

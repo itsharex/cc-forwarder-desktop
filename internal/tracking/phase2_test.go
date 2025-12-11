@@ -45,7 +45,7 @@ func TestPhase2_UpdateOptions(t *testing.T) {
 	tracker.RecordRequestUpdate(requestID, opts)
 
 	// 测试取消完成（最终状态）
-	tracker.RecordRequestFinalFailure(requestID, "cancelled", "client disconnected", "Connection closed by client", 0, 499, nil)
+	tracker.RecordRequestFinalFailure(requestID, "claude-3-opus", "cancelled", "client disconnected", "Connection closed by client", 0, 499, nil)
 
 	// 等待一点时间让事件处理完成
 	time.Sleep(100 * time.Millisecond)

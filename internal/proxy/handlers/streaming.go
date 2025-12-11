@@ -137,6 +137,8 @@ func (sh *StreamingHandler) executeStreamingWithRetry(ctx context.Context, w htt
 			} else {
 				// 真的没有端点
 				lifecycleManager.HandleError(noHealthyErr)
+				// 🔧 [修复] 2025-12-11: 所有端点不可用时必须终结请求
+				lifecycleManager.FailRequest("no_endpoints", "No endpoints available in active groups", http.StatusServiceUnavailable)
 				w.WriteHeader(http.StatusServiceUnavailable)
 				fmt.Fprintf(w, "data: error: No endpoints available in active groups\n\n")
 				flusher.Flush()
@@ -145,6 +147,8 @@ func (sh *StreamingHandler) executeStreamingWithRetry(ctx context.Context, w htt
 		} else {
 			// 按原来逻辑处理
 			lifecycleManager.HandleError(noHealthyErr)
+			// 🔧 [修复] 2025-12-11: 所有端点不可用时必须终结请求
+			lifecycleManager.FailRequest("no_healthy_endpoints", "No healthy endpoints available", http.StatusServiceUnavailable)
 			w.WriteHeader(http.StatusServiceUnavailable)
 			fmt.Fprintf(w, "data: error: No healthy endpoints available\n\n")
 			flusher.Flush()

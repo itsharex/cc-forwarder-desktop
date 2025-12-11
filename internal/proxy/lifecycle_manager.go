@@ -615,15 +615,26 @@ func (rlm *RequestLifecycleManager) IncrementRetry() {
 	slog.Info(fmt.Sprintf("🔄 [重试计数] [%s] 重试次数: %d", rlm.requestID, rlm.retryCount))
 }
 
+// getModelNameForCost 获取用于成本计算的模型名
+// 🔧 [重构] 2025-12-11: 提取公共逻辑，避免代码重复
+func (rlm *RequestLifecycleManager) getModelNameForCost() string {
+	modelName := rlm.GetModelName()
+	if modelName == "" {
+		return "unknown"
+	}
+	return modelName
+}
+
 // FailRequest 标记请求最终失败
 // Phase 3新增: 专门用于标记最终失败的方法
 // 设置状态为"failed"并记录失败原因和错误详情
 func (rlm *RequestLifecycleManager) FailRequest(failureReason, errorDetail string, httpStatus int) {
 	duration := time.Since(rlm.startTime)
+	modelName := rlm.getModelNameForCost()
 
 	// 🚀 [架构重构] 使用统一的最终失败记录方法，一次性更新所有相关字段
 	if rlm.usageTracker != nil {
-		rlm.usageTracker.RecordRequestFinalFailure(rlm.requestID, "failed", failureReason, errorDetail, duration, httpStatus, nil)
+		rlm.usageTracker.RecordRequestFinalFailure(rlm.requestID, modelName, "failed", failureReason, errorDetail, duration, httpStatus, nil)
 	}
 
 	slog.Error(fmt.Sprintf("❌ [请求最终失败] [%s] 端点: %s, 原因: %s, 状态码: %d, 耗时: %dms",
@@ -638,10 +649,11 @@ func (rlm *RequestLifecycleManager) FailRequest(failureReason, errorDetail strin
 // tokens参数可以为nil（无计费信息）或包含已产生的Token信息
 func (rlm *RequestLifecycleManager) CancelRequest(cancelReason string, tokens *tracking.TokenUsage) {
 	duration := time.Since(rlm.startTime)
+	modelName := rlm.getModelNameForCost()
 
 	// 🚀 [架构重构] 使用统一的最终失败记录方法，一次性更新所有相关字段
 	if rlm.usageTracker != nil {
-		rlm.usageTracker.RecordRequestFinalFailure(rlm.requestID, "cancelled", cancelReason, "", duration, 499, tokens)
+		rlm.usageTracker.RecordRequestFinalFailure(rlm.requestID, modelName, "cancelled", cancelReason, "", duration, 499, tokens)
 	}
 
 	if tokens != nil {

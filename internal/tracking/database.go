@@ -545,6 +545,7 @@ func (ut *UsageTracker) buildSuccessQuery(event RequestEvent) (string, []interfa
 
 // buildFinalFailureQuery 构建失败/取消完成的查询
 // 一次性更新所有失败/取消相关字段：status, end_time, duration_ms, failure_reason/cancel_reason, 可选Token
+// 🔧 [修复] 2025-12-11: 添加 model_name 和 5m/1h 缓存字段支持
 func (ut *UsageTracker) buildFinalFailureQuery(event RequestEvent) (string, []interface{}, error) {
 	data, ok := event.Data.(map[string]interface{})
 	if !ok {
@@ -556,9 +557,12 @@ func (ut *UsageTracker) buildFinalFailureQuery(event RequestEvent) (string, []in
 	errorDetail, _ := data["error_detail"].(string)
 	duration, _ := data["duration"].(time.Duration)
 	httpStatus, _ := data["http_status"].(int)
+	modelName, _ := data["model_name"].(string) // 🔧 [修复] 2025-12-11: 读取模型名
 	inputTokens, _ := data["input_tokens"].(int64)
 	outputTokens, _ := data["output_tokens"].(int64)
 	cacheCreationTokens, _ := data["cache_creation_tokens"].(int64)
+	cacheCreation5mTokens, _ := data["cache_creation_5m_tokens"].(int64) // 🔧 [修复] 2025-12-11
+	cacheCreation1hTokens, _ := data["cache_creation_1h_tokens"].(int64) // 🔧 [修复] 2025-12-11
 	cacheReadTokens, _ := data["cache_read_tokens"].(int64)
 
 	// 根据状态设置相应的reason字段
@@ -572,9 +576,12 @@ func (ut *UsageTracker) buildFinalFailureQuery(event RequestEvent) (string, []in
 			status = 'cancelled',
 			cancel_reason = ?,
 			http_status_code = ?,
+			model_name = COALESCE(NULLIF(NULLIF(?, ''), 'unknown'), model_name),
 			input_tokens = ?,
 			output_tokens = ?,
 			cache_creation_tokens = ?,
+			cache_creation_5m_tokens = ?,
+			cache_creation_1h_tokens = ?,
 			cache_read_tokens = ?,
 			updated_at = %s
 		WHERE request_id = ?`, ut.adapter.BuildDateTimeNow())
@@ -584,9 +591,12 @@ func (ut *UsageTracker) buildFinalFailureQuery(event RequestEvent) (string, []in
 			duration.Milliseconds(),
 			reason,     // cancel_reason
 			httpStatus, // http_status_code
+			modelName,  // 🔧 [修复] 2025-12-11: model_name (空字符串和 'unknown' 都会被忽略)
 			inputTokens,
 			outputTokens,
 			cacheCreationTokens,
+			cacheCreation5mTokens,  // 🔧 [修复] 2025-12-11
+			cacheCreation1hTokens,  // 🔧 [修复] 2025-12-11
 			cacheReadTokens,
 			event.RequestID,
 		}
@@ -599,9 +609,12 @@ func (ut *UsageTracker) buildFinalFailureQuery(event RequestEvent) (string, []in
 			failure_reason = ?,
 			last_failure_reason = ?,
 			http_status_code = ?,
+			model_name = COALESCE(NULLIF(NULLIF(?, ''), 'unknown'), model_name),
 			input_tokens = ?,
 			output_tokens = ?,
 			cache_creation_tokens = ?,
+			cache_creation_5m_tokens = ?,
+			cache_creation_1h_tokens = ?,
 			cache_read_tokens = ?,
 			updated_at = %s
 		WHERE request_id = ?`, ut.adapter.BuildDateTimeNow())
@@ -612,9 +625,12 @@ func (ut *UsageTracker) buildFinalFailureQuery(event RequestEvent) (string, []in
 			reason,      // failure_reason
 			errorDetail, // last_failure_reason
 			httpStatus,  // http_status_code
+			modelName,   // 🔧 [修复] 2025-12-11: model_name (空字符串和 'unknown' 都会被忽略)
 			inputTokens,
 			outputTokens,
 			cacheCreationTokens,
+			cacheCreation5mTokens,  // 🔧 [修复] 2025-12-11
+			cacheCreation1hTokens,  // 🔧 [修复] 2025-12-11
 			cacheReadTokens,
 			event.RequestID,
 		}

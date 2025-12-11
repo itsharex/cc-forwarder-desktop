@@ -115,12 +115,16 @@ func (rh *RegularHandler) HandleRegularRequestUnified(ctx context.Context, w htt
 				} else {
 					// 真的没有端点
 					lifecycleManager.HandleError(noHealthyErr)
+					// 🔧 [修复] 2025-12-11: 所有端点不可用时必须终结请求
+					lifecycleManager.FailRequest("no_endpoints", "No endpoints available in active groups", http.StatusServiceUnavailable)
 					http.Error(w, "No endpoints available in active groups", http.StatusServiceUnavailable)
 					return
 				}
 			} else {
 				// 按原来逻辑处理
 				lifecycleManager.HandleError(noHealthyErr)
+				// 🔧 [修复] 2025-12-11: 所有端点不可用时必须终结请求
+				lifecycleManager.FailRequest("no_healthy_endpoints", "No healthy endpoints available", http.StatusServiceUnavailable)
 				http.Error(w, "No healthy endpoints available", http.StatusServiceUnavailable)
 				return
 			}
@@ -387,7 +391,11 @@ func (rh *RegularHandler) executeRequest(ctx context.Context, r *http.Request, b
 
 // processSuccessResponse 处理成功响应
 func (rh *RegularHandler) processSuccessResponse(ctx context.Context, w http.ResponseWriter, resp *http.Response, lifecycleManager RequestLifecycleManager, endpointName string, r *http.Request) {
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			slog.Warn("Failed to close response body", "request_id", lifecycleManager.GetRequestID(), "error", err)
+		}
+	}()
 
 	// 复制响应头（排除Content-Encoding用于gzip处理）
 	rh.responseProcessor.CopyResponseHeaders(resp, w)
@@ -401,6 +409,8 @@ func (rh *RegularHandler) processSuccessResponse(ctx context.Context, w http.Res
 		connID := lifecycleManager.GetRequestID()
 		lifecycleManager.HandleError(fmt.Errorf("failed to process response: %w", err))
 		slog.Error("Failed to process response body", "request_id", connID, "error", err)
+		// 🔧 [修复] 2025-12-11: 响应体读取失败时必须终结请求，否则会滞留在内存热池
+		lifecycleManager.FailRequest("response_read_error", err.Error(), resp.StatusCode)
 		return
 	}
 
@@ -409,6 +419,8 @@ func (rh *RegularHandler) processSuccessResponse(ctx context.Context, w http.Res
 		connID := lifecycleManager.GetRequestID()
 		lifecycleManager.HandleError(fmt.Errorf("failed to write response: %w", err))
 		slog.Error("Failed to write response to client", "request_id", connID, "error", err)
+		// 🔧 [修复] 2025-12-11: 写入失败时必须终结请求，否则会滞留在内存热池
+		lifecycleManager.FailRequest("response_write_error", err.Error(), resp.StatusCode)
 		return
 	}
 
