@@ -76,7 +76,7 @@ CC-Forwarder Desktop 是一款基于 [Wails](https://wails.io) 构建的跨平�
 
 ### 方式一：下载安装包
 
-从 [Releases](https://github.com/你的用户名/cc-forwarder-desktop/releases) 页面下载：
+从 [Releases](https://github.com/xiaozhaodong/cc-forwarder-desktop/releases) 页面下载：
 
 | 平台 | 文件 |
 |------|------|
@@ -92,7 +92,7 @@ CC-Forwarder Desktop 是一款基于 [Wails](https://wails.io) 构建的跨平�
 go install github.com/wailsapp/wails/v2/cmd/wails@latest
 
 # 2. 克隆项目
-git clone https://github.com/你的用户名/cc-forwarder-desktop.git
+git clone https://github.com/xiaozhaodong/cc-forwarder-desktop.git
 cd cc-forwarder-desktop
 
 # 3. 安装前端依赖
