@@ -62,7 +62,8 @@ func (sm *SuspensionManager) ShouldSuspend(ctx context.Context) bool {
 	}
 
 	// 检查是否为手动模式
-	if sm.config.Group.AutoSwitchBetweenGroups {
+	// 🔧 [热更新修复] 使用 Failover.Enabled（v4.0+），而非废弃的 Group.AutoSwitchBetweenGroups
+	if sm.config.Failover.Enabled {
 		slog.InfoContext(ctx, "🔍 [挂起检查] 当前为自动切换模式，不挂起请求")
 		return false
 	}
@@ -119,7 +120,7 @@ func (sm *SuspensionManager) ShouldSuspend(ctx context.Context) bool {
 	}
 
 	slog.InfoContext(ctx, fmt.Sprintf("✅ [挂起检查] 满足挂起条件: 手动模式=%t, 功能启用=%t, 当前挂起数=%d/%d, 可用备用组=%v",
-		!sm.config.Group.AutoSwitchBetweenGroups, sm.config.RequestSuspend.Enabled,
+		!sm.config.Failover.Enabled, sm.config.RequestSuspend.Enabled,
 		currentCount, sm.config.RequestSuspend.MaxSuspendedRequests, availableGroups))
 
 	return true

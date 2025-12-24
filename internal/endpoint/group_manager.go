@@ -158,8 +158,8 @@ func (gm *GroupManager) updateActiveGroups() {
 		if !group.CooldownUntil.IsZero() && now.After(group.CooldownUntil) {
 			// Cooldown expired, clear it but don't auto-activate in manual mode
 			group.CooldownUntil = time.Time{}
-			// v4.0: 使用 Failover.Enabled (优先) 或 Group.AutoSwitchBetweenGroups (兼容)
-			autoSwitchEnabled := gm.config.Failover.Enabled || gm.config.Group.AutoSwitchBetweenGroups
+			// 🔧 [热更新修复] 统一使用 Failover.Enabled，不再使用废弃的 Group.AutoSwitchBetweenGroups
+			autoSwitchEnabled := gm.config.Failover.Enabled
 			slog.Info(fmt.Sprintf("🔄 [组管理] 组冷却结束: %s (优先级: %d) - %s",
 				group.Name, group.Priority,
 				map[bool]string{true: "自动激活", false: "等待手动激活"}[autoSwitchEnabled]))
@@ -177,8 +177,8 @@ func (gm *GroupManager) updateActiveGroups() {
 
 	// Determine which groups should be active based on priority
 	// Only auto-activate next group if auto switching is enabled
-	// v4.0: 使用 Failover.Enabled (优先) 或 Group.AutoSwitchBetweenGroups (兼容)
-	autoSwitchEnabled := gm.config.Failover.Enabled || gm.config.Group.AutoSwitchBetweenGroups
+	// 🔧 [热更新修复] 统一使用 Failover.Enabled
+	autoSwitchEnabled := gm.config.Failover.Enabled
 	if autoSwitchEnabled {
 		// Auto mode: automatically activate highest priority available group
 		// Get all groups sorted by priority
@@ -241,8 +241,8 @@ func (gm *GroupManager) updateActiveGroups() {
 				slog.Debug("🚀 [组管理] 检测到系统启动 - 尝试激活优先级1组")
 			} else {
 				// This is runtime failure - respect manual mode + suspend settings
-				// v4.0: 使用 Failover.Enabled (优先) 或 Group.AutoSwitchBetweenGroups (兼容)
-				autoSwitchEnabled := gm.config.Failover.Enabled || gm.config.Group.AutoSwitchBetweenGroups
+				// 🔧 [热更新修复] 统一使用 Failover.Enabled
+				autoSwitchEnabled := gm.config.Failover.Enabled
 				if !autoSwitchEnabled && gm.config.RequestSuspend.Enabled {
 					shouldAutoActivate = false
 					slog.Debug("⏸️ [组管理] 运行时故障且启用挂起 - 不激活其他组，等待挂起处理")
@@ -269,8 +269,8 @@ func (gm *GroupManager) updateActiveGroups() {
 						if hasHealthyEndpoints {
 							wasActive := group.IsActive
 							group.IsActive = true
-							// v4.0: 使用 Failover.Enabled (优先) 或 Group.AutoSwitchBetweenGroups (兼容)
-							autoSwitchEnabled := gm.config.Failover.Enabled || gm.config.Group.AutoSwitchBetweenGroups
+							// 🔧 [热更新修复] 统一使用 Failover.Enabled
+							autoSwitchEnabled := gm.config.Failover.Enabled
 							if isActualStartup {
 								if autoSwitchEnabled {
 									slog.Info(fmt.Sprintf("🚀 [自动模式] 启动时激活优先级1组: %s (有健康端点)", group.Name))
@@ -368,8 +368,8 @@ func (gm *GroupManager) SetGroupCooldown(groupName string) {
 
 	if group, exists := gm.groups[groupName]; exists {
 		// In manual mode, mark group as manually paused to prevent re-activation
-		// v4.0: 使用 Failover.Enabled (优先) 或 Group.AutoSwitchBetweenGroups (兼容)
-		autoSwitchEnabled := gm.config.Failover.Enabled || gm.config.Group.AutoSwitchBetweenGroups
+		// 🔧 [热更新修复] 统一使用 Failover.Enabled
+		autoSwitchEnabled := gm.config.Failover.Enabled
 		if !autoSwitchEnabled {
 			group.IsActive = false
 			group.ManuallyPaused = true // 👈 关键修复：防止组被自动重新激活

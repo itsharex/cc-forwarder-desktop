@@ -20,6 +20,12 @@ func (m *Manager) SetOnFailoverTriggered(fn func(failedEndpoint, newEndpoint str
 // 当请求在某端点上失败达到重试上限时调用
 // 返回: 新激活的端点名，如果没有可用端点则返回空字符串
 func (m *Manager) TriggerRequestFailover(failedEndpointName string, reason string) (string, error) {
+	// 🔧 [热更新修复] 检查故障转移开关
+	if !m.config.Failover.Enabled {
+		slog.Info(fmt.Sprintf("⏭️ [故障转移] 故障转移已禁用，跳过: %s", failedEndpointName))
+		return "", fmt.Errorf("故障转移已禁用")
+	}
+
 	slog.Warn(fmt.Sprintf("🔄 [故障转移] 触发请求级故障转移: %s, 原因: %s", failedEndpointName, reason))
 
 	// 1. 找到失败的端点并设置冷却

@@ -954,6 +954,9 @@ func (a *App) applySettingsToConfig() {
 	// 故障转移配置
 	a.config.Failover.Enabled = a.settingsService.GetBool(ctx, service.CategoryFailover, "enabled", a.config.Failover.Enabled)
 	a.config.Failover.DefaultCooldown = a.settingsService.GetDuration(ctx, service.CategoryFailover, "default_cooldown", a.config.Failover.DefaultCooldown)
+	// 🔧 [热更新修复] 同步更新旧字段 Group.AutoSwitchBetweenGroups
+	// 部分组件仍使用此字段（suspension_manager, retry），确保配置一致性
+	a.config.Group.AutoSwitchBetweenGroups = a.config.Failover.Enabled
 
 	// 请求控制配置
 	a.config.GlobalTimeout = a.settingsService.GetDuration(ctx, service.CategoryRequest, "global_timeout", a.config.GlobalTimeout)

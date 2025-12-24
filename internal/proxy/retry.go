@@ -566,9 +566,10 @@ func (rh *RetryHandler) shouldSuspendRequest(ctx context.Context) bool {
 		slog.InfoContext(ctx, "🔍 [挂起检查] 功能未启用，不挂起请求")
 		return false
 	}
-	
+
 	// 检查是否为手动模式
-	if rh.config.Group.AutoSwitchBetweenGroups {
+	// 🔧 [热更新修复] 使用 Failover.Enabled（v4.0+），而非废弃的 Group.AutoSwitchBetweenGroups
+	if rh.config.Failover.Enabled {
 		slog.InfoContext(ctx, "🔍 [挂起检查] 当前为自动切换模式，不挂起请求")
 		return false
 	}
@@ -618,8 +619,8 @@ func (rh *RetryHandler) shouldSuspendRequest(ctx context.Context) bool {
 		return false
 	}
 	
-	slog.InfoContext(ctx, fmt.Sprintf("✅ [挂起检查] 满足挂起条件: 手动模式=%t, 功能启用=%t, 当前挂起数=%d/%d, 可用备用组=%v", 
-		!rh.config.Group.AutoSwitchBetweenGroups, rh.config.RequestSuspend.Enabled, 
+	slog.InfoContext(ctx, fmt.Sprintf("✅ [挂起检查] 满足挂起条件: 手动模式=%t, 功能启用=%t, 当前挂起数=%d/%d, 可用备用组=%v",
+		!rh.config.Failover.Enabled, rh.config.RequestSuspend.Enabled,
 		currentCount, rh.config.RequestSuspend.MaxSuspendedRequests, availableGroups))
 	
 	return true

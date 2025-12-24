@@ -5,6 +5,18 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
 项目遵循 [语义化版本控制](https://semver.org/lang/zh-CN/)。
 
+## [5.2.4] - 2025-12-24
+
+### 🐛 Bug 修复 (Bug Fixes)
+
+- **配置热更新修复**: 修复故障转移和挂起功能配置修改后不生效的问题
+  - 在 `TriggerRequestFailover` 添加 `Failover.Enabled` 开关检查，关闭故障转移后不再触发
+  - 统一所有组件使用 `Failover.Enabled` 字段，移除废弃的 `Group.AutoSwitchBetweenGroups` 兼容逻辑
+  - 热更新时同步 `Group.AutoSwitchBetweenGroups` 字段，确保旧代码路径也能正确响应
+  - 修复 `SuspensionManager` 和 `RetryHandler` 的挂起判断逻辑
+
+---
+
 ## [5.2.3] - 2025-12-20
 
 ### 🐛 Bug 修复 (Bug Fixes)
