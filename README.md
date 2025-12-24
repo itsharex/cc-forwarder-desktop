@@ -254,6 +254,35 @@ usage_tracking:
 
 </details>
 
+<details>
+<summary><b>Q: 日志和数据存储在哪里？</b></summary>
+
+应用数据存储在系统用户目录下，不同平台路径如下：
+
+| 平台 | 应用数据目录 |
+|------|-------------|
+| macOS | `~/Library/Application Support/CC-Forwarder/` |
+| Windows | `%APPDATA%\CC-Forwarder\` |
+| Linux | `~/.local/share/cc-forwarder/` |
+
+**目录结构：**
+```
+CC-Forwarder/
+├── data/
+│   └── usage.db        # SQLite 数据库（端点配置、请求记录、使用统计）
+├── logs/
+│   └── app.log         # 应用日志（支持轮转）
+└── config/
+    └── config.yaml     # 配置文件（如果存在）
+```
+
+**说明：**
+- 日志文件支持自动轮转，可在配置中设置大小限制和保留数量
+- 数据库包含所有端点配置和历史请求记录，建议定期备份
+- 卸载应用时这些数据不会自动删除，如需清理请手动删除对应目录
+
+</details>
+
 ## 开发计划
 
 - [ ] 多语言支持（English）
